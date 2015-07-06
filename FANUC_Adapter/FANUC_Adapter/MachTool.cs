@@ -1023,51 +1023,74 @@ namespace AdapterLab
             Microsoft.Win32.RegistryKey rk = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall");
 
             String[] Key = rk.GetSubKeyNames();
+            String[] bufferKeys = new String[Key.Length + 1];
+            int i = 0;
+
+            foreach (String subKey in rk.GetSubKeyNames())
+            {
+                if (rk.OpenSubKey(subKey).GetValue(@"DisplayName") != null)
+                {
+                    bufferKeys[i] = rk.OpenSubKey(subKey).GetValue(@"DisplayName").ToString();
+                }
+                else
+                {
+                    bufferKeys[i] = subKey;
+                }
+                i++;
+            }
 
 
             if (File.Exists(@"C:\DB\regkeys.txt"))
             {
-                string[] bufferRegKeys = File.ReadAllLines(@"C:\DB\regkeys.txt");
+                string[] bufferOldRegKeys = File.ReadAllLines(@"C:\DB\regkeys.txt");
 
-                if (bufferRegKeys.Length != Key.Length)
+                if (bufferOldRegKeys.Length != bufferKeys.Length)
                 {
                     // If there are less saved keys than there are new keys
                     // Then a program has been added. We will find out how
                     // Many programs have been installed on the machine
-                    if (bufferRegKeys.Length < Key.Length)
+                    if (bufferOldRegKeys.Length < bufferKeys.Length)
                     {
-                        int valueDifference = Key.Length - bufferRegKeys.Length;
-                        string[] newKeyName = new string[valueDifference];
+                        StreamWriter file = new StreamWriter(@"C:\DB\changedRegkeys.txt", true);
+                        int valueDifference = bufferKeys.Length - bufferOldRegKeys.Length;
+                        int newKeyCount = 0;
+                        string newKeyName;
 
-                        for (int count = 0; Key.Length < count; count++)
+                        for (int count = 0; count < bufferKeys.Length - 1; count++)
                         {
-                            int newKeyCount = 0;
-                            if (bufferRegKeys[count] != Key[count])
+                            if (bufferOldRegKeys[count - newKeyCount] != bufferKeys[count] && bufferKeys[count + newKeyCount] != null)
                             {
-                                newKeyName[newKeyCount] = Key[count - newKeyCount];
+                                string time = DateTime.Now.ToString("MMM dd, yyyy HH:mm:ss");
+                                newKeyName = time + " Installed - " + bufferKeys[count];
+                                file.WriteLine(newKeyName);
+                                file.Flush();
                                 newKeyCount++;
                             }
                         }
-                        File.WriteAllLines(@"C:\DB\regkeys.txt", Key);
-                        File.WriteAllLines(@"C:\DB\addedRegkeys.txt", newKeyName);
+                        file.Close();
+                        File.WriteAllLines(@"C:\DB\regkeys.txt", bufferKeys);
                     }
 
-                    if (bufferRegKeys.Length > Key.Length)
+                    if (bufferOldRegKeys.Length > bufferKeys.Length)
                     {
-                        int valueDifference = bufferRegKeys.Length - Key.Length;
-                        string[] delKeyName = new string[valueDifference];
+                        int valueDifference = bufferOldRegKeys.Length - bufferKeys.Length;
+                        StreamWriter file = new StreamWriter(@"C:\DB\changedRegkeys.txt", true);
+                        int delKeyCount = 0;
+                        string delKeyName;
 
-                        for (int count = 0; Key.Length < count; count++)
+                        for (int count = 0; count < bufferKeys.Length; count++)
                         {
-                            int delKeyCount = 0;
-                            if (bufferRegKeys[count] != Key[count])
+                            if (bufferOldRegKeys[count] != bufferKeys[count - delKeyCount])
                             {
-                                delKeyName[delKeyCount] = Key[count + delKeyCount];
+                                string time = DateTime.Now.ToString("MMM dd, yyyy HH:mm:ss");
+                                delKeyName = time + " Removed - " + bufferOldRegKeys[count];
+                                file.WriteLine(delKeyName);
+                                file.Flush();
                                 delKeyCount++;
                             }
                         }
-                        File.WriteAllLines(@"C:\DB\regkeys.txt", Key);
-                        File.WriteAllLines(@"C:\DB\addedRegkeys.txt", delKeyName);
+                        file.Close();
+                        File.WriteAllLines(@"C:\DB\regkeys.txt", bufferKeys);
                     }
                 }
 
@@ -1075,15 +1098,12 @@ namespace AdapterLab
 
             if (!File.Exists(@"C:\DB\regkeys.txt"))
             {
-                // File.WriteAllLines(@"C:\DB\regkeys.txt", Key);
-                StreamWriter file = new StreamWriter(@"C:\DB\regkeys.txt");
-
-                foreach (String subKey in rk.GetSubKeyNames())
+                for (int j = 0; j < bufferKeys.Length; j++)
                 {
-                    file.WriteLine(rk.OpenSubKey(subKey).GetValue(@"DisplayName"));
+                    File.WriteAllLines(@"C:\DB\regkeys.txt", bufferKeys);
                 }
-
             }
+
         }
     }
 }
